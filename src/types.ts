@@ -1,5 +1,7 @@
 export type IdentityKey = "learning" | "engineering" | "creative" | "efficiency";
 
+export type PersonaKey = `${IdentityKey}-${IdentityKey}`;
+
 export type DimensionKey = "agency" | "tempo" | "output" | "risk";
 
 export type ScoreMap<T extends string> = Record<T, number>;

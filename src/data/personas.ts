@@ -1,4 +1,4 @@
-import type { DimensionDefinition, IdentityKey, Persona } from "../types";
+import type { DimensionDefinition, IdentityKey, Persona, PersonaKey } from "../types";
 
 export const IDENTITY_LABELS: Record<IdentityKey, string> = {
   learning: "学习/研究型",
@@ -37,7 +37,13 @@ export const DIMENSIONS: DimensionDefinition[] = [
   },
 ];
 
-export const PERSONAS: Record<string, Persona> = {
+export const EXPECTED_PERSONA_KEYS: PersonaKey[] = IDENTITY_ORDER.flatMap((main) =>
+  IDENTITY_ORDER.filter((secondary) => secondary !== main).map(
+    (secondary) => `${main}-${secondary}` as PersonaKey,
+  ),
+);
+
+export const PERSONAS: Partial<Record<PersonaKey, Persona>> = {
   "learning-engineering": {
     title: "知识架构师",
     identityLine: "学习型工程派",
@@ -158,8 +164,8 @@ export const PERSONAS: Record<string, Persona> = {
     risks: ["可能让表达变得过于公式化", "容易为了效率牺牲新鲜感"],
     advice: ["保留一部分内容用于自由试验。", "让 AI 帮你做复用，但由你决定主张。", "定期删除效果差的模板。"],
   },
-};
+} satisfies Partial<Record<PersonaKey, Persona>>;
 
-export function personaKey(main: IdentityKey, secondary: IdentityKey): string {
+export function personaKey(main: IdentityKey, secondary: IdentityKey): PersonaKey {
   return `${main}-${secondary}`;
 }
