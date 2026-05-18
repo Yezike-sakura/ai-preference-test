@@ -25,11 +25,11 @@ export function calculateResult(
   const dimensionScores = emptyScores(dimensionKeys);
 
   for (const question of questions) {
-    const answerId = answers[question.id];
-    if (!answerId) {
+    if (!Object.prototype.hasOwnProperty.call(answers, question.id)) {
       throw new Error(`Missing answer for ${question.id}`);
     }
 
+    const answerId = answers[question.id];
     const option = question.options.find((candidate) => candidate.id === answerId);
     if (!option) {
       throw new Error(`Invalid answer ${answerId} for ${question.id}`);

@@ -70,4 +70,8 @@ describe("calculateResult", () => {
   it("throws a clear error when an answer is missing", () => {
     expect(() => calculateResult(QUESTIONS, PERSONAS, {})).toThrow("Missing answer for q1");
   });
+
+  it("throws an invalid-answer error when an answer is an empty string", () => {
+    expect(() => calculateResult(QUESTIONS, PERSONAS, { q1: "" })).toThrow("Invalid answer  for q1");
+  });
 });
