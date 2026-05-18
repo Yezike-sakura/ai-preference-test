@@ -43,8 +43,7 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("你的 AI 使用人格");
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
-    expect(buttonByText(root, "生成结果图片").disabled).toBe(true);
-    expect(root.textContent).toContain("图片导出将在下一步接入");
+    expect(buttonByText(root, "生成结果图片").disabled).toBe(false);
   });
 
   it("supports returning to a previous answer", () => {

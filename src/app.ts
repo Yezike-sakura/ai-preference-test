@@ -1,3 +1,4 @@
+import { downloadPosterImage } from "./poster";
 import { calculateResult } from "./scoring";
 import { IDENTITY_LABELS, PERSONAS } from "./data/personas";
 import { QUESTIONS } from "./data/questions";
@@ -11,6 +12,7 @@ interface AppState {
   answers: Record<string, string>;
   showError: boolean;
   calculationError: string | null;
+  exportError: string;
   result: QuizResult | null;
 }
 
@@ -28,6 +30,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     answers: {},
     showError: false,
     calculationError: null,
+    exportError: "",
     result: null,
   };
 
@@ -76,6 +79,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       state.currentIndex = 0;
       state.showError = false;
       state.calculationError = null;
+      state.exportError = "";
       render();
     });
 
@@ -109,6 +113,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
         state.answers[question.id] = option.id;
         state.showError = false;
         state.calculationError = null;
+        state.exportError = "";
         render();
       });
       optionButton.dataset.optionId = option.id;
@@ -121,6 +126,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       state.currentIndex = Math.max(0, state.currentIndex - 1);
       state.showError = false;
       state.calculationError = null;
+      state.exportError = "";
       render();
     });
     previousButton.disabled = state.currentIndex === 0;
@@ -129,6 +135,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       if (!state.answers[question.id]) {
         state.showError = true;
         state.calculationError = null;
+        state.exportError = "";
         render();
         return;
       }
@@ -137,15 +144,18 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
         try {
           state.result = calculateResult(questions, PERSONAS, state.answers);
           state.calculationError = null;
+          state.exportError = "";
           state.screen = "result";
         } catch {
           state.result = null;
           state.calculationError = "结果计算失败，请返回检查答案或重新测试。";
+          state.exportError = "";
         }
       } else {
         state.currentIndex += 1;
         state.showError = false;
         state.calculationError = null;
+        state.exportError = "";
       }
       render();
     });
@@ -200,12 +210,20 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
 
     const actions = el("div", "action-row");
     const exportGroup = el("div", "export-group");
-    const exportButton = button("生成结果图片", "primary-button", () => undefined);
-    exportButton.disabled = true;
-    exportGroup.append(
-      exportButton,
-      textEl("small", "export-note", "图片导出将在下一步接入"),
-    );
+    const exportButton = button("生成结果图片", "primary-button", async () => {
+      try {
+        const hadExportError = Boolean(state.exportError);
+        await downloadPosterImage(result);
+        state.exportError = "";
+        if (hadExportError) {
+          render();
+        }
+      } catch {
+        state.exportError = "结果图片生成失败，可以先使用截图保存海报。";
+        render();
+      }
+    });
+    exportGroup.append(exportButton, state.exportError ? alertEl(state.exportError) : emptyEl());
 
     actions.append(
       exportGroup,
@@ -215,6 +233,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
         state.answers = {};
         state.showError = false;
         state.calculationError = null;
+        state.exportError = "";
         state.result = null;
         render();
       }),
@@ -288,7 +307,7 @@ function renderKeywords(keywords: string[]): HTMLElement {
   return row;
 }
 
-function button(text: string, className: string, onClick: () => void): HTMLButtonElement {
+function button(text: string, className: string, onClick: () => void | Promise<void>): HTMLButtonElement {
   const element = document.createElement("button");
   element.type = "button";
   element.className = className;
