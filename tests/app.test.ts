@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
 import { QUESTIONS } from "../src/data/questions";
+import type { Question } from "../src/types";
 
-function clickByText(root: HTMLElement, text: string): void {
+function buttonByText(root: HTMLElement, text: string): HTMLButtonElement {
   const element = Array.from(root.querySelectorAll("button")).find((button) =>
     button.textContent?.includes(text),
   );
   if (!element) throw new Error(`Button not found: ${text}`);
+  return element;
+}
+
+function clickByText(root: HTMLElement, text: string): void {
+  const element = buttonByText(root, text);
   element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
@@ -37,6 +43,8 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("你的 AI 使用人格");
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
+    expect(buttonByText(root, "生成结果图片").disabled).toBe(true);
+    expect(root.textContent).toContain("图片导出将在下一步接入");
   });
 
   it("supports returning to a previous answer", () => {
@@ -50,5 +58,32 @@ describe("quiz UI", () => {
 
     expect(root.textContent).toContain("第 1 / 16 题");
     expect(root.querySelector("[aria-pressed='true']")).not.toBeNull();
+  });
+
+  it("shows a recoverable error if result calculation fails", () => {
+    const root = document.createElement("div");
+    const corruptedQuestions: Question[] = [
+      {
+        id: "__proto__",
+        prompt: "Broken scoring fixture",
+        options: [
+          {
+            id: "a",
+            text: "Option A",
+            identityWeights: { learning: 1 },
+            dimensionWeights: { agency: 1 },
+          },
+        ],
+      },
+    ];
+    createApp(root, corruptedQuestions);
+
+    clickByText(root, "开始测试");
+    root.querySelector<HTMLButtonElement>("[data-option-id]")?.click();
+    clickByText(root, "查看结果");
+
+    const alert = root.querySelector("[role='alert']");
+    expect(alert?.textContent).toContain("结果计算失败，请返回检查答案或重新测试。");
+    expect(root.textContent).toContain("第 1 / 1 题");
   });
 });

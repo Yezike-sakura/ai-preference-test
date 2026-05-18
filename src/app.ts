@@ -10,6 +10,7 @@ interface AppState {
   currentIndex: number;
   answers: Record<string, string>;
   showError: boolean;
+  calculationError: string | null;
   result: QuizResult | null;
 }
 
@@ -26,6 +27,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     currentIndex: 0,
     answers: {},
     showError: false,
+    calculationError: null,
     result: null,
   };
 
@@ -73,6 +75,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       state.screen = "quiz";
       state.currentIndex = 0;
       state.showError = false;
+      state.calculationError = null;
       render();
     });
 
@@ -105,6 +108,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       const optionButton = button(option.text, `option-button${isSelected ? " selected" : ""}`, () => {
         state.answers[question.id] = option.id;
         state.showError = false;
+        state.calculationError = null;
         render();
       });
       optionButton.dataset.optionId = option.id;
@@ -116,6 +120,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     const previousButton = button("上一题", "secondary-button", () => {
       state.currentIndex = Math.max(0, state.currentIndex - 1);
       state.showError = false;
+      state.calculationError = null;
       render();
     });
     previousButton.disabled = state.currentIndex === 0;
@@ -123,16 +128,24 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     const nextButton = button(isLastQuestion ? "查看结果" : "下一题", "primary-button", () => {
       if (!state.answers[question.id]) {
         state.showError = true;
+        state.calculationError = null;
         render();
         return;
       }
 
       if (isLastQuestion) {
-        state.result = calculateResult(questions, PERSONAS, state.answers);
-        state.screen = "result";
+        try {
+          state.result = calculateResult(questions, PERSONAS, state.answers);
+          state.calculationError = null;
+          state.screen = "result";
+        } catch {
+          state.result = null;
+          state.calculationError = "结果计算失败，请返回检查答案或重新测试。";
+        }
       } else {
         state.currentIndex += 1;
         state.showError = false;
+        state.calculationError = null;
       }
       render();
     });
@@ -145,6 +158,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       textEl("h2", undefined, question.prompt),
       optionList,
       state.showError ? textEl("p", "inline-error", "请先选择一个最像你的选项") : emptyEl(),
+      state.calculationError ? alertEl(state.calculationError) : emptyEl(),
       navRow,
     );
 
@@ -185,13 +199,22 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     );
 
     const actions = el("div", "action-row");
+    const exportGroup = el("div", "export-group");
+    const exportButton = button("生成结果图片", "primary-button", () => undefined);
+    exportButton.disabled = true;
+    exportGroup.append(
+      exportButton,
+      textEl("small", "export-note", "图片导出将在下一步接入"),
+    );
+
     actions.append(
-      button("生成结果图片", "primary-button", () => undefined),
+      exportGroup,
       button("重新测试", "secondary-button", () => {
         state.screen = "start";
         state.currentIndex = 0;
         state.answers = {};
         state.showError = false;
+        state.calculationError = null;
         state.result = null;
         render();
       }),
@@ -300,4 +323,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 function emptyEl(): Text {
   return document.createTextNode("");
+}
+
+function alertEl(message: string): HTMLElement {
+  const element = textEl("p", "inline-error", message);
+  element.setAttribute("role", "alert");
+  return element;
 }
