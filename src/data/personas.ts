@@ -37,11 +37,20 @@ export const DIMENSIONS: DimensionDefinition[] = [
   },
 ];
 
-export const EXPECTED_PERSONA_KEYS: PersonaKey[] = IDENTITY_ORDER.flatMap((main) =>
-  IDENTITY_ORDER.filter((secondary) => secondary !== main).map(
-    (secondary) => `${main}-${secondary}` as PersonaKey,
-  ),
-);
+export const EXPECTED_PERSONA_KEYS: PersonaKey[] = [
+  "learning-engineering",
+  "learning-creative",
+  "learning-efficiency",
+  "engineering-learning",
+  "engineering-creative",
+  "engineering-efficiency",
+  "creative-learning",
+  "creative-engineering",
+  "creative-efficiency",
+  "efficiency-learning",
+  "efficiency-engineering",
+  "efficiency-creative",
+];
 
 export const PERSONAS: Partial<Record<PersonaKey, Persona>> = {
   "learning-engineering": {
@@ -167,5 +176,9 @@ export const PERSONAS: Partial<Record<PersonaKey, Persona>> = {
 } satisfies Partial<Record<PersonaKey, Persona>>;
 
 export function personaKey(main: IdentityKey, secondary: IdentityKey): PersonaKey {
-  return `${main}-${secondary}`;
+  if (main === secondary) {
+    throw new Error("Persona key requires different main and secondary identities");
+  }
+
+  return `${main}-${secondary}` as PersonaKey;
 }

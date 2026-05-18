@@ -1,6 +1,18 @@
 export type IdentityKey = "learning" | "engineering" | "creative" | "efficiency";
 
-export type PersonaKey = `${IdentityKey}-${IdentityKey}`;
+export type PersonaKey =
+  | "learning-engineering"
+  | "learning-creative"
+  | "learning-efficiency"
+  | "engineering-learning"
+  | "engineering-creative"
+  | "engineering-efficiency"
+  | "creative-learning"
+  | "creative-engineering"
+  | "creative-efficiency"
+  | "efficiency-learning"
+  | "efficiency-engineering"
+  | "efficiency-creative";
 
 export type DimensionKey = "agency" | "tempo" | "output" | "risk";
 

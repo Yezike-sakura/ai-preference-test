@@ -1,5 +1,5 @@
 import type { DimensionDefinition, DimensionKey, Persona, PersonaKey, Question } from "./types";
-import { DIMENSIONS, EXPECTED_PERSONA_KEYS } from "./data/personas";
+import { DIMENSIONS, EXPECTED_PERSONA_KEYS, IDENTITY_ORDER } from "./data/personas";
 
 const EXPECTED_OPTION_IDS = ["a", "b", "c", "d"];
 const EXPECTED_DIMENSION_KEYS: DimensionKey[] = ["agency", "tempo", "output", "risk"];
@@ -11,10 +11,15 @@ function isBlank(value: string): boolean {
 function validateWeightMap(
   weights: Record<string, number | undefined>,
   label: string,
+  validKeys: readonly string[],
 ): string[] {
   const errors: string[] = [];
 
   for (const [key, value] of Object.entries(weights)) {
+    if (!validKeys.includes(key)) {
+      errors.push(`${label} ${key} is not a valid key`);
+    }
+
     if (!Number.isFinite(value)) {
       errors.push(`${label} ${key} must be a finite number`);
     }
@@ -66,9 +71,10 @@ export function validateDimensions(dimensions: DimensionDefinition[]): string[] 
 
 export function validateQuestionBank(
   questions: Question[],
-  personas: Partial<Record<PersonaKey, Persona>>,
+  personas: Partial<Record<string, Persona | undefined>>,
 ): string[] {
   const errors: string[] = validateDimensions(DIMENSIONS);
+  const expectedPersonaKeys = new Set<string>(EXPECTED_PERSONA_KEYS);
 
   if (questions.length !== 16) {
     errors.push(`Expected 16 questions, received ${questions.length}`);
@@ -116,8 +122,16 @@ export function validateQuestionBank(
       }
 
       errors.push(
-        ...validateWeightMap(option.identityWeights, `${question.id} option ${option.id} identity weight`),
-        ...validateWeightMap(option.dimensionWeights, `${question.id} option ${option.id} dimension weight`),
+        ...validateWeightMap(
+          option.identityWeights as Record<string, number | undefined>,
+          `${question.id} option ${option.id} identity weight`,
+          IDENTITY_ORDER,
+        ),
+        ...validateWeightMap(
+          option.dimensionWeights as Record<string, number | undefined>,
+          `${question.id} option ${option.id} dimension weight`,
+          EXPECTED_DIMENSION_KEYS,
+        ),
       );
     }
 
@@ -132,6 +146,12 @@ export function validateQuestionBank(
   for (const key of EXPECTED_PERSONA_KEYS) {
     if (!personas[key]) {
       errors.push(`Missing persona copy for ${key}`);
+    }
+  }
+
+  for (const key of Object.keys(personas)) {
+    if (!expectedPersonaKeys.has(key)) {
+      errors.push(`Unexpected persona key: ${key}`);
     }
   }
 

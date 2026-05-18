@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { EXPECTED_PERSONA_KEYS, PERSONAS } from "../src/data/personas";
+import { EXPECTED_PERSONA_KEYS, PERSONAS, personaKey } from "../src/data/personas";
 import { QUESTIONS } from "../src/data/questions";
 import { validateDimensions, validateQuestionBank } from "../src/scoring";
-import type { DimensionDefinition, Question } from "../src/types";
+import type { DimensionDefinition, Persona, Question } from "../src/types";
 
 function withQuestionPatch(
   questionIndex: number,
@@ -55,6 +55,15 @@ describe("question bank", () => {
     expect(validateQuestionBank(QUESTIONS, personas)).toContain("Missing persona copy for learning-engineering");
   });
 
+  it("rejects unexpected persona copy keys", () => {
+    const personas = {
+      ...PERSONAS,
+      "learning-learning": PERSONAS["learning-engineering"],
+    } as Record<string, Persona | undefined>;
+
+    expect(validateQuestionBank(QUESTIONS, personas)).toContain("Unexpected persona key: learning-learning");
+  });
+
   it("rejects empty or invalid option text and weights", () => {
     const questions = withQuestionPatch(0, {
       options: QUESTIONS[0].options.map((option) =>
@@ -75,6 +84,33 @@ describe("question bank", () => {
         "q1 option a must contain at least one identity weight",
         "q1 option a dimension weight output must be a finite number",
       ]),
+    );
+  });
+
+  it("rejects unknown identity or dimension weight keys", () => {
+    const questions = withQuestionPatch(0, {
+      options: QUESTIONS[0].options.map((option) =>
+        option.id === "a"
+          ? {
+              ...option,
+              identityWeights: { learning: 3, invalidIdentity: 1 } as never,
+              dimensionWeights: { output: 1, invalidDimension: 1 } as never,
+            }
+          : option,
+      ),
+    });
+
+    expect(validateQuestionBank(questions, PERSONAS)).toEqual(
+      expect.arrayContaining([
+        "q1 option a identity weight invalidIdentity is not a valid key",
+        "q1 option a dimension weight invalidDimension is not a valid key",
+      ]),
+    );
+  });
+
+  it("rejects persona keys with the same main and secondary identity", () => {
+    expect(() => personaKey("learning", "learning")).toThrow(
+      "Persona key requires different main and secondary identities",
     );
   });
 
