@@ -32,6 +32,19 @@ describe("quiz UI", () => {
     posterMock.downloadPosterImage.mockReset();
   });
 
+  it("renders a stronger product-style start screen", () => {
+    const root = document.createElement("div");
+    createApp(root);
+
+    expect(root.querySelector(".hero-layout")).not.toBeNull();
+    expect(root.textContent).toContain("测出你的 AI 协作人格");
+    expect(root.textContent).toContain("四个偏好维度");
+    expect(root.textContent).toContain("委托 / 掌控");
+    expect(root.textContent).toContain("探索 / 完成");
+    expect(root.textContent).toContain("整合 / 产出");
+    expect(root.textContent).toContain("开放 / 验证");
+  });
+
   it("blocks next until the current question is answered", () => {
     const root = document.createElement("div");
     createApp(root);

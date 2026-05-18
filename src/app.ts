@@ -1,6 +1,6 @@
 import { downloadPosterImage } from "./poster";
 import { calculateResult } from "./scoring";
-import { IDENTITY_DESCRIPTIONS, IDENTITY_LABELS, PERSONAS } from "./data/personas";
+import { DIMENSIONS, IDENTITY_DESCRIPTIONS, IDENTITY_LABELS, PERSONAS } from "./data/personas";
 import { QUESTIONS } from "./data/questions";
 import type { IdentityKey, Question, QuizResult } from "./types";
 
@@ -56,22 +56,23 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
   }
 
   function renderStart(): HTMLElement {
-    const section = el("section", "start-panel hero-shell");
-    section.append(
+    const section = el("section", "start-panel hero-shell hero-layout");
+    const copy = el("div", "hero-copy");
+    copy.append(
       textEl("p", "eyebrow", "AI Preference Test"),
-      textEl("h1", undefined, "AI 使用偏好测试"),
+      textEl("h1", undefined, "测出你的 AI 协作人格"),
       textEl(
         "p",
         "subtitle",
-        "16 题，约 3-5 分钟，测出你更习惯如何使用 AI 与 Agent。",
+        "AI 使用偏好测试通过 16 个真实使用情境，帮你理解自己更适合怎样和 AI、Agent 一起学习、创作、开发与推进任务。",
       ),
     );
 
     const badges = el("div", "start-meta");
     badges.append(
-      textEl("span", undefined, "本地完成"),
-      textEl("span", undefined, "无需登录"),
-      textEl("span", undefined, "即时结果"),
+      textEl("span", undefined, "16 题快测"),
+      textEl("span", undefined, "本地计算"),
+      textEl("span", undefined, "可生成结果图"),
     );
 
     const startButton = button("开始测试", "primary-button", () => {
@@ -83,8 +84,35 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       render();
     });
 
-    section.append(badges, startButton);
+    copy.append(badges, startButton);
+    section.append(copy, renderDimensionPreview());
     return section;
+  }
+
+  function renderDimensionPreview(): HTMLElement {
+    const panel = el("aside", "dimension-preview");
+    panel.append(
+      textEl("p", "eyebrow", "四个偏好维度"),
+      textEl("h2", undefined, "不是能力评判，而是你的 AI 协作默认姿势。"),
+    );
+
+    const grid = el("div", "dimension-preview-grid");
+    const labels = [
+      "委托 / 掌控",
+      "探索 / 完成",
+      "整合 / 产出",
+      "开放 / 验证",
+    ];
+    for (const [index, dimension] of DIMENSIONS.entries()) {
+      const item = el("div", "dimension-chip");
+      item.append(
+        textEl("strong", undefined, labels[index]),
+        textEl("span", undefined, `${dimension.positive.letter}${dimension.negative.letter} · ${dimension.positive.label} / ${dimension.negative.label}`),
+      );
+      grid.append(item);
+    }
+    panel.append(grid);
+    return panel;
   }
 
   function renderQuiz(): HTMLElement {
