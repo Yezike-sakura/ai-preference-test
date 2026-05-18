@@ -1,7 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
 import { QUESTIONS } from "../src/data/questions";
 import type { Question } from "../src/types";
+
+const posterMock = vi.hoisted(() => ({
+  downloadPosterImage: vi.fn(),
+}));
+
+vi.mock("../src/poster", () => posterMock);
 
 function buttonByText(root: HTMLElement, text: string): HTMLButtonElement {
   const element = Array.from(root.querySelectorAll("button")).find((button) =>
@@ -16,7 +22,16 @@ function clickByText(root: HTMLElement, text: string): void {
   element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
+async function flushAsyncHandlers(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe("quiz UI", () => {
+  beforeEach(() => {
+    posterMock.downloadPosterImage.mockReset();
+  });
+
   it("blocks next until the current question is answered", () => {
     const root = document.createElement("div");
     createApp(root);
@@ -44,6 +59,29 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
     expect(buttonByText(root, "生成结果图片").disabled).toBe(false);
+  });
+
+  it("shows a recoverable error if poster export fails", async () => {
+    posterMock.downloadPosterImage.mockRejectedValueOnce(new Error("Export failed"));
+    const root = document.createElement("div");
+    createApp(root);
+
+    clickByText(root, "开始测试");
+    for (let index = 0; index < QUESTIONS.length; index += 1) {
+      const firstOption = root.querySelector<HTMLButtonElement>("[data-option-id]");
+      if (!firstOption) throw new Error("Missing option button");
+      firstOption.click();
+      clickByText(root, index === QUESTIONS.length - 1 ? "查看结果" : "下一题");
+    }
+
+    clickByText(root, "生成结果图片");
+    await flushAsyncHandlers();
+
+    expect(posterMock.downloadPosterImage).toHaveBeenCalledTimes(1);
+    const alert = root.querySelector("[role='alert']");
+    expect(alert?.textContent).toContain("结果图片生成失败，可以先使用截图保存海报。");
+    expect(root.textContent).toContain("你的 AI 使用人格");
+    expect(root.textContent).toContain("生成结果图片");
   });
 
   it("supports returning to a previous answer", () => {

@@ -16,11 +16,29 @@ function keywordText(result: QuizResult): string {
   return result.persona.keywords.join(" · ");
 }
 
+function wrapEscapedText(value: string, maxCharacters: number): string[] {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  const characters = Array.from(normalized);
+  const lines: string[] = [];
+
+  for (let index = 0; index < characters.length; index += maxCharacters) {
+    lines.push(escapeXml(characters.slice(index, index + maxCharacters).join("").trim()));
+  }
+
+  return lines.length > 0 ? lines : [""];
+}
+
+function renderTspans(lines: string[], x: number, lineHeight: number): string {
+  return lines
+    .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${line}</tspan>`)
+    .join("\n    ");
+}
+
 export function buildPosterSvg(result: QuizResult): string {
-  const title = escapeXml(result.persona.title);
+  const titleLines = wrapEscapedText(result.persona.title, 12);
   const typeLine = escapeXml(`${result.typeCode} · ${result.persona.identityLine}`);
-  const keywords = escapeXml(keywordText(result));
-  const goldenLine = escapeXml(result.persona.goldenLine);
+  const keywordLines = wrapEscapedText(keywordText(result), 30);
+  const goldenLines = wrapEscapedText(result.persona.goldenLine, 23);
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}">
@@ -41,15 +59,17 @@ export function buildPosterSvg(result: QuizResult): string {
     <rect x="78" y="78" width="924" height="1194" rx="54" fill="#ffffff" opacity="0.10" stroke="#ffffff" stroke-opacity="0.28"/>
   </g>
   <text x="120" y="160" fill="#ffffff" opacity="0.82" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="34" font-weight="800" letter-spacing="5">YOUR AI PERSONA</text>
-  <text x="120" y="560" fill="#ffffff" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="118" font-weight="900">${title}</text>
+  <text x="120" y="560" fill="#ffffff" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="118" font-weight="900">
+    ${renderTspans(titleLines, 120, 124)}
+  </text>
   <text x="120" y="660" fill="#ffffff" opacity="0.92" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="46" font-weight="800">${typeLine}</text>
   <rect x="120" y="730" width="840" height="86" rx="43" fill="#ffffff" opacity="0.16"/>
-  <text x="160" y="785" fill="#ffffff" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="34" font-weight="700">${keywords}</text>
-  <foreignObject x="120" y="880" width="840" height="230">
-    <div xmlns="http://www.w3.org/1999/xhtml" style="font-family:Arial,'Microsoft YaHei',sans-serif;color:#fff;font-size:42px;font-weight:800;line-height:1.45;">
-      ${goldenLine}
-    </div>
-  </foreignObject>
+  <text x="160" y="785" fill="#ffffff" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="34" font-weight="700">
+    ${renderTspans(keywordLines, 160, 44)}
+  </text>
+  <text x="120" y="920" fill="#ffffff" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="42" font-weight="800">
+    ${renderTspans(goldenLines, 120, 61)}
+  </text>
   <text x="120" y="1210" fill="#ffffff" opacity="0.72" font-family="Arial, 'Microsoft YaHei', sans-serif" font-size="28" font-weight="700">AI 使用偏好测试 · 本地计算 · 不保存答案</text>
 </svg>`.trim();
 }
@@ -57,12 +77,15 @@ export function buildPosterSvg(result: QuizResult): string {
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  try {
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+  } finally {
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
 }
 
 export async function downloadPosterImage(result: QuizResult): Promise<void> {
