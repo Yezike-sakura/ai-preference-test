@@ -64,6 +64,24 @@ describe("question bank", () => {
     expect(validateQuestionBank(QUESTIONS, personas)).toContain("Unexpected persona key: learning-learning");
   });
 
+  it("rejects malformed persona copy", () => {
+    const personas = {
+      ...PERSONAS,
+      "learning-engineering": {
+        ...PERSONAS["learning-engineering"],
+        title: " ",
+        advice: ["only one"],
+      },
+    };
+
+    expect(validateQuestionBank(QUESTIONS, personas)).toEqual(
+      expect.arrayContaining([
+        "Persona learning-engineering title must not be empty",
+        "Persona learning-engineering advice must contain exactly 3 items",
+      ]),
+    );
+  });
+
   it("rejects empty or invalid option text and weights", () => {
     const questions = withQuestionPatch(0, {
       options: QUESTIONS[0].options.map((option) =>
@@ -131,5 +149,18 @@ describe("question bank", () => {
         "Dimension agency negative label must not be empty",
       ]),
     );
+  });
+
+  it("rejects unknown dimension keys", () => {
+    const dimensions: DimensionDefinition[] = [
+      {
+        key: "unknown" as never,
+        positive: { letter: "X", label: "未知", description: "valid" },
+        negative: { letter: "Y", label: "未知反向", description: "valid" },
+      },
+      ...([] as DimensionDefinition[]),
+    ];
+
+    expect(validateDimensions(dimensions)).toContain("Unexpected dimension key: unknown");
   });
 });

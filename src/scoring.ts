@@ -28,6 +28,48 @@ function validateWeightMap(
   return errors;
 }
 
+function validateNonEmptyStringArray(
+  values: string[],
+  label: string,
+): string[] {
+  const errors: string[] = [];
+
+  if (values.length === 0) {
+    errors.push(`${label} must contain at least one item`);
+  }
+
+  values.forEach((value, index) => {
+    if (isBlank(value)) {
+      errors.push(`${label} item ${index + 1} must not be empty`);
+    }
+  });
+
+  return errors;
+}
+
+function validatePersonaCopy(
+  key: PersonaKey,
+  persona: Persona,
+): string[] {
+  const errors: string[] = [];
+
+  for (const field of ["title", "identityLine", "goldenLine", "summary"] as const) {
+    if (isBlank(persona[field])) {
+      errors.push(`Persona ${key} ${field} must not be empty`);
+    }
+  }
+
+  for (const field of ["keywords", "strengths", "risks", "advice"] as const) {
+    errors.push(...validateNonEmptyStringArray(persona[field], `Persona ${key} ${field}`));
+  }
+
+  if (persona.advice.length !== 3) {
+    errors.push(`Persona ${key} advice must contain exactly 3 items`);
+  }
+
+  return errors;
+}
+
 export function validateDimensions(dimensions: DimensionDefinition[]): string[] {
   const errors: string[] = [];
 
@@ -37,6 +79,10 @@ export function validateDimensions(dimensions: DimensionDefinition[]): string[] 
 
   const dimensionKeys = new Set<DimensionKey>();
   for (const dimension of dimensions) {
+    if (!EXPECTED_DIMENSION_KEYS.includes(dimension.key)) {
+      errors.push(`Unexpected dimension key: ${dimension.key}`);
+    }
+
     if (dimensionKeys.has(dimension.key)) {
       errors.push(`Duplicate dimension key: ${dimension.key}`);
     }
@@ -144,9 +190,13 @@ export function validateQuestionBank(
   }
 
   for (const key of EXPECTED_PERSONA_KEYS) {
-    if (!personas[key]) {
+    const persona = personas[key];
+    if (!persona) {
       errors.push(`Missing persona copy for ${key}`);
+      continue;
     }
+
+    errors.push(...validatePersonaCopy(key, persona));
   }
 
   for (const key of Object.keys(personas)) {

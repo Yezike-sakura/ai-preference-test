@@ -52,7 +52,7 @@ export const EXPECTED_PERSONA_KEYS: PersonaKey[] = [
   "efficiency-creative",
 ];
 
-export const PERSONAS: Partial<Record<PersonaKey, Persona>> = {
+export const PERSONAS = {
   "learning-engineering": {
     title: "知识架构师",
     identityLine: "学习型工程派",
@@ -173,7 +173,7 @@ export const PERSONAS: Partial<Record<PersonaKey, Persona>> = {
     risks: ["可能让表达变得过于公式化", "容易为了效率牺牲新鲜感"],
     advice: ["保留一部分内容用于自由试验。", "让 AI 帮你做复用，但由你决定主张。", "定期删除效果差的模板。"],
   },
-} satisfies Partial<Record<PersonaKey, Persona>>;
+} satisfies Record<PersonaKey, Persona>;
 
 export function personaKey(main: IdentityKey, secondary: IdentityKey): PersonaKey {
   if (main === secondary) {
