@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-启动前需要本机已安装 Node.js 和 npm，并确保它们在 PATH 中。启动后打开终端里显示的本地地址。Vite 默认会提供类似 `http://localhost:5173/` 的地址。
+启动前需要本机已安装 Node.js 20.19 或更高版本和 npm，并确保它们在 PATH 中。启动后打开终端里显示的本地地址。Vite 默认会提供类似 `http://localhost:5173/` 的地址。
 
 ## 测试
 

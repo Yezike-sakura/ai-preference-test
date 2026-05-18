@@ -7,6 +7,13 @@ export const IDENTITY_LABELS: Record<IdentityKey, string> = {
   efficiency: "效率/组织型",
 };
 
+export const IDENTITY_DESCRIPTIONS: Record<IdentityKey, string> = {
+  learning: "你主要把 AI 用作理解、拆解和验证知识的伙伴。",
+  engineering: "你主要把 AI 用作解决问题、搭建原型和推进执行的工具。",
+  creative: "你主要把 AI 用作激发灵感、组织表达和生成内容的合作者。",
+  efficiency: "你主要把 AI 用作整理流程、规划任务和复用经验的助手。",
+};
+
 export const IDENTITY_ORDER: IdentityKey[] = [
   "learning",
   "engineering",

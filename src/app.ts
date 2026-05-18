@@ -1,6 +1,6 @@
 import { downloadPosterImage } from "./poster";
 import { calculateResult } from "./scoring";
-import { IDENTITY_LABELS, PERSONAS } from "./data/personas";
+import { IDENTITY_DESCRIPTIONS, IDENTITY_LABELS, PERSONAS } from "./data/personas";
 import { QUESTIONS } from "./data/questions";
 import type { IdentityKey, Question, QuizResult } from "./types";
 
@@ -241,6 +241,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
 
     const grid = el("div", "detail-grid");
     grid.append(
+      renderIdentityProfile(result),
       renderIdentityScores(result),
       renderDimensions(result),
       renderList("优势", result.persona.strengths),
@@ -250,6 +251,32 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
 
     details.append(actions, grid, textEl("p", "advanced-note", "进阶测试暂未开放"));
     return details;
+  }
+
+  function renderIdentityProfile(result: QuizResult): HTMLElement {
+    const card = el("section", "score-list");
+    card.append(textEl("h3", undefined, "主副身份"));
+
+    const main = el("div");
+    main.append(
+      textEl("span", undefined, `主身份：${IDENTITY_LABELS[result.mainIdentity]}`),
+      textEl("strong", undefined, "主要驱动"),
+    );
+
+    const secondary = el("div");
+    secondary.append(
+      textEl("span", undefined, `副身份：${IDENTITY_LABELS[result.secondaryIdentity]}`),
+      textEl("strong", undefined, "辅助倾向"),
+    );
+
+    card.append(
+      main,
+      textEl("p", undefined, IDENTITY_DESCRIPTIONS[result.mainIdentity]),
+      secondary,
+      textEl("p", undefined, IDENTITY_DESCRIPTIONS[result.secondaryIdentity]),
+    );
+
+    return card;
   }
 
   function renderIdentityScores(result: QuizResult): HTMLElement {

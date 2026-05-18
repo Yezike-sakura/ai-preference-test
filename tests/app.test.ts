@@ -56,6 +56,10 @@ describe("quiz UI", () => {
     }
 
     expect(root.textContent).toContain("你的 AI 使用人格");
+    expect(root.textContent).toContain("主身份");
+    expect(root.textContent).toContain("副身份");
+    expect(root.textContent).toContain("学习/研究型");
+    expect(root.textContent).toContain("工程/执行型");
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
     expect(buttonByText(root, "生成结果图片").disabled).toBe(false);
