@@ -1,5 +1,5 @@
-import type { DimensionDefinition, DimensionKey, PersonaKey, Question } from "./types";
-import { DIMENSIONS, EXPECTED_PERSONA_KEYS, IDENTITY_ORDER } from "./data/personas";
+import type { DimensionDefinition, DimensionKey, IdentityKey, Persona, PersonaKey, Question, QuizResult, ScoreMap } from "./types";
+import { DIMENSIONS, EXPECTED_PERSONA_KEYS, IDENTITY_ORDER, personaKey } from "./data/personas";
 
 const EXPECTED_OPTION_IDS = ["a", "b", "c", "d"];
 const EXPECTED_DIMENSION_KEYS: DimensionKey[] = ["agency", "tempo", "output", "risk"];
@@ -10,6 +10,77 @@ const EXPECTED_DIMENSION_LETTERS: Record<DimensionKey, { positive: string; negat
   output: { positive: "I", negative: "P" },
   risk: { positive: "O", negative: "V" },
 };
+
+export function emptyScores<T extends string>(keys: readonly T[]): ScoreMap<T> {
+  return Object.fromEntries(keys.map((key) => [key, 0])) as ScoreMap<T>;
+}
+
+export function calculateResult(
+  questions: Question[],
+  personas: Partial<Record<PersonaKey, Persona>>,
+  answers: Record<string, string>,
+): QuizResult {
+  const identityScores = emptyScores(IDENTITY_ORDER);
+  const dimensionKeys = DIMENSIONS.map((dimension) => dimension.key);
+  const dimensionScores = emptyScores(dimensionKeys);
+
+  for (const question of questions) {
+    const answerId = answers[question.id];
+    if (!answerId) {
+      throw new Error(`Missing answer for ${question.id}`);
+    }
+
+    const option = question.options.find((candidate) => candidate.id === answerId);
+    if (!option) {
+      throw new Error(`Invalid answer ${answerId} for ${question.id}`);
+    }
+
+    for (const identity of IDENTITY_ORDER) {
+      identityScores[identity] += option.identityWeights[identity] ?? 0;
+    }
+
+    for (const dimension of dimensionKeys) {
+      dimensionScores[dimension] += option.dimensionWeights[dimension] ?? 0;
+    }
+  }
+
+  const rankedIdentities = IDENTITY_ORDER.slice().sort(
+    (left, right) =>
+      identityScores[right] - identityScores[left] ||
+      IDENTITY_ORDER.indexOf(left) - IDENTITY_ORDER.indexOf(right),
+  );
+  const mainIdentity: IdentityKey = rankedIdentities[0];
+  const secondaryIdentity: IdentityKey = rankedIdentities[1];
+  const key = personaKey(mainIdentity, secondaryIdentity);
+  const persona = personas[key];
+
+  if (!persona) {
+    throw new Error(`Missing persona for ${key}`);
+  }
+
+  const dimensions = DIMENSIONS.map((dimension) => {
+    const score = dimensionScores[dimension.key];
+    const pole = score >= 0 ? dimension.positive : dimension.negative;
+
+    return {
+      key: dimension.key,
+      letter: pole.letter,
+      label: pole.label,
+      description: pole.description,
+      score,
+    };
+  });
+
+  return {
+    mainIdentity,
+    secondaryIdentity,
+    identityScores,
+    dimensionScores,
+    typeCode: dimensions.map((dimension) => dimension.letter).join(""),
+    dimensions,
+    persona,
+  };
+}
 
 function isBlank(value: string): boolean {
   return value.trim().length === 0;
