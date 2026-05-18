@@ -1,19 +1,32 @@
-import type { DimensionDefinition, DimensionKey, Persona, PersonaKey, Question } from "./types";
+import type { DimensionDefinition, DimensionKey, PersonaKey, Question } from "./types";
 import { DIMENSIONS, EXPECTED_PERSONA_KEYS, IDENTITY_ORDER } from "./data/personas";
 
 const EXPECTED_OPTION_IDS = ["a", "b", "c", "d"];
 const EXPECTED_DIMENSION_KEYS: DimensionKey[] = ["agency", "tempo", "output", "risk"];
+const EXPECTED_QUESTION_IDS = Array.from({ length: 16 }, (_, index) => `q${index + 1}`);
+const EXPECTED_DIMENSION_LETTERS: Record<DimensionKey, { positive: string; negative: string }> = {
+  agency: { positive: "D", negative: "C" },
+  tempo: { positive: "E", negative: "F" },
+  output: { positive: "I", negative: "P" },
+  risk: { positive: "O", negative: "V" },
+};
 
 function isBlank(value: string): boolean {
   return value.trim().length === 0;
 }
 
 function validateWeightMap(
-  weights: Record<string, number | undefined>,
+  weights: unknown,
   label: string,
   validKeys: readonly string[],
+  invalidRecordLabel = label,
 ): string[] {
   const errors: string[] = [];
+
+  if (!isPlainRecord(weights)) {
+    errors.push(`${invalidRecordLabel} must be a plain record`);
+    return errors;
+  }
 
   for (const [key, value] of Object.entries(weights)) {
     if (!validKeys.includes(key)) {
@@ -28,17 +41,36 @@ function validateWeightMap(
   return errors;
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
 function validateNonEmptyStringArray(
-  values: string[],
+  values: unknown,
   label: string,
 ): string[] {
   const errors: string[] = [];
+
+  if (!Array.isArray(values)) {
+    errors.push(`${label} must be an array`);
+    return errors;
+  }
 
   if (values.length === 0) {
     errors.push(`${label} must contain at least one item`);
   }
 
   values.forEach((value, index) => {
+    if (typeof value !== "string") {
+      errors.push(`${label} item ${index + 1} must be a string`);
+      return;
+    }
+
     if (isBlank(value)) {
       errors.push(`${label} item ${index + 1} must not be empty`);
     }
@@ -49,12 +81,23 @@ function validateNonEmptyStringArray(
 
 function validatePersonaCopy(
   key: PersonaKey,
-  persona: Persona,
+  persona: unknown,
 ): string[] {
   const errors: string[] = [];
 
+  if (!isPlainRecord(persona)) {
+    errors.push(`Persona ${key} must be a plain record`);
+    return errors;
+  }
+
   for (const field of ["title", "identityLine", "goldenLine", "summary"] as const) {
-    if (isBlank(persona[field])) {
+    const value = persona[field];
+    if (typeof value !== "string") {
+      errors.push(`Persona ${key} ${field} must be a string`);
+      continue;
+    }
+
+    if (isBlank(value)) {
       errors.push(`Persona ${key} ${field} must not be empty`);
     }
   }
@@ -63,7 +106,7 @@ function validatePersonaCopy(
     errors.push(...validateNonEmptyStringArray(persona[field], `Persona ${key} ${field}`));
   }
 
-  if (persona.advice.length !== 3) {
+  if (Array.isArray(persona.advice) && persona.advice.length !== 3) {
     errors.push(`Persona ${key} advice must contain exactly 3 items`);
   }
 
@@ -81,6 +124,16 @@ export function validateDimensions(dimensions: DimensionDefinition[]): string[] 
   for (const dimension of dimensions) {
     if (!EXPECTED_DIMENSION_KEYS.includes(dimension.key)) {
       errors.push(`Unexpected dimension key: ${dimension.key}`);
+    }
+
+    const expectedLetters = EXPECTED_DIMENSION_LETTERS[dimension.key];
+    if (expectedLetters) {
+      if (dimension.positive.letter !== expectedLetters.positive) {
+        errors.push(`Dimension ${dimension.key} positive letter must be ${expectedLetters.positive}`);
+      }
+      if (dimension.negative.letter !== expectedLetters.negative) {
+        errors.push(`Dimension ${dimension.key} negative letter must be ${expectedLetters.negative}`);
+      }
     }
 
     if (dimensionKeys.has(dimension.key)) {
@@ -117,10 +170,11 @@ export function validateDimensions(dimensions: DimensionDefinition[]): string[] 
 
 export function validateQuestionBank(
   questions: Question[],
-  personas: Partial<Record<string, Persona | undefined>>,
+  personas: Partial<Record<string, unknown>>,
 ): string[] {
   const errors: string[] = validateDimensions(DIMENSIONS);
   const expectedPersonaKeys = new Set<string>(EXPECTED_PERSONA_KEYS);
+  const expectedQuestionIds = new Set<string>(EXPECTED_QUESTION_IDS);
 
   if (questions.length !== 16) {
     errors.push(`Expected 16 questions, received ${questions.length}`);
@@ -139,6 +193,15 @@ export function validateQuestionBank(
 
     if (isBlank(question.prompt)) {
       errors.push(`${question.id} prompt must not be empty`);
+    }
+
+    if (!expectedQuestionIds.has(question.id)) {
+      errors.push(`Unexpected question id: ${question.id}`);
+    }
+
+    if (!Array.isArray(question.options)) {
+      errors.push(`${question.id} options must be an array`);
+      continue;
     }
 
     if (question.options.length !== 4) {
@@ -160,23 +223,25 @@ export function validateQuestionBank(
         errors.push(`${question.id} option ${option.id} text must not be empty`);
       }
 
-      if (Object.keys(option.identityWeights).length === 0) {
+      if (isPlainRecord(option.identityWeights) && Object.keys(option.identityWeights).length === 0) {
         errors.push(`${question.id} option ${option.id} must contain at least one identity weight`);
       }
-      if (Object.keys(option.dimensionWeights).length === 0) {
+      if (isPlainRecord(option.dimensionWeights) && Object.keys(option.dimensionWeights).length === 0) {
         errors.push(`${question.id} option ${option.id} must contain at least one dimension weight`);
       }
 
       errors.push(
         ...validateWeightMap(
-          option.identityWeights as Record<string, number | undefined>,
+          option.identityWeights,
           `${question.id} option ${option.id} identity weight`,
           IDENTITY_ORDER,
+          `${question.id} option ${option.id} identityWeights`,
         ),
         ...validateWeightMap(
-          option.dimensionWeights as Record<string, number | undefined>,
+          option.dimensionWeights,
           `${question.id} option ${option.id} dimension weight`,
           EXPECTED_DIMENSION_KEYS,
+          `${question.id} option ${option.id} dimensionWeights`,
         ),
       );
     }
@@ -186,6 +251,12 @@ export function validateQuestionBank(
       EXPECTED_OPTION_IDS.some((optionId) => !optionIds.has(optionId))
     ) {
       errors.push(`${question.id} option ids must exactly be a,b,c,d`);
+    }
+  }
+
+  for (const id of EXPECTED_QUESTION_IDS) {
+    if (!questionIds.has(id)) {
+      errors.push(`Missing question id: ${id}`);
     }
   }
 

@@ -82,6 +82,27 @@ describe("question bank", () => {
     );
   });
 
+  it("returns errors for malformed persona runtime shapes", () => {
+    const personas = {
+      ...PERSONAS,
+      "learning-engineering": {
+        ...PERSONAS["learning-engineering"],
+        title: undefined,
+        keywords: "not an array",
+        advice: ["", 42, "ok"],
+      },
+    } as unknown as Record<string, Persona | undefined>;
+
+    expect(validateQuestionBank(QUESTIONS, personas)).toEqual(
+      expect.arrayContaining([
+        "Persona learning-engineering title must be a string",
+        "Persona learning-engineering keywords must be an array",
+        "Persona learning-engineering advice item 1 must not be empty",
+        "Persona learning-engineering advice item 2 must be a string",
+      ]),
+    );
+  });
+
   it("rejects empty or invalid option text and weights", () => {
     const questions = withQuestionPatch(0, {
       options: QUESTIONS[0].options.map((option) =>
@@ -126,6 +147,40 @@ describe("question bank", () => {
     );
   });
 
+  it("returns errors for malformed question runtime shapes", () => {
+    const missingOptions = withQuestionPatch(0, { options: undefined as never });
+    const invalidWeights = withQuestionPatch(0, {
+      options: QUESTIONS[0].options.map((option) =>
+        option.id === "a"
+          ? {
+              ...option,
+              identityWeights: null as never,
+              dimensionWeights: "bad" as never,
+            }
+          : option,
+      ),
+    });
+
+    expect(validateQuestionBank(missingOptions, PERSONAS)).toContain("q1 options must be an array");
+    expect(validateQuestionBank(invalidWeights, PERSONAS)).toEqual(
+      expect.arrayContaining([
+        "q1 option a identityWeights must be a plain record",
+        "q1 option a dimensionWeights must be a plain record",
+      ]),
+    );
+  });
+
+  it("rejects unexpected question ids", () => {
+    const questions = withQuestionPatch(0, { id: "q99" });
+
+    expect(validateQuestionBank(questions, PERSONAS)).toEqual(
+      expect.arrayContaining([
+        "Missing question id: q1",
+        "Unexpected question id: q99",
+      ]),
+    );
+  });
+
   it("rejects persona keys with the same main and secondary identity", () => {
     expect(() => personaKey("learning", "learning")).toThrow(
       "Persona key requires different main and secondary identities",
@@ -162,5 +217,22 @@ describe("question bank", () => {
     ];
 
     expect(validateDimensions(dimensions)).toContain("Unexpected dimension key: unknown");
+  });
+
+  it("rejects wrong dimension letters", () => {
+    const dimensions: DimensionDefinition[] = [
+      {
+        key: "agency",
+        positive: { letter: "X", label: "委托型", description: "valid" },
+        negative: { letter: "Y", label: "掌控型", description: "valid" },
+      },
+    ];
+
+    expect(validateDimensions(dimensions)).toEqual(
+      expect.arrayContaining([
+        "Dimension agency positive letter must be D",
+        "Dimension agency negative letter must be C",
+      ]),
+    );
   });
 });
