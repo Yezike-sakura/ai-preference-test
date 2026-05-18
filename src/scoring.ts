@@ -32,7 +32,7 @@ export function calculateResult(
     const answerId = answers[question.id];
     const option = question.options.find((candidate) => candidate.id === answerId);
     if (!option) {
-      throw new Error(`Invalid answer ${answerId} for ${question.id}`);
+      throw new Error(`Invalid answer ${formatAnswerId(answerId)} for ${question.id}`);
     }
 
     for (const identity of IDENTITY_ORDER) {
@@ -80,6 +80,10 @@ export function calculateResult(
     dimensions,
     persona,
   };
+}
+
+function formatAnswerId(answerId: string): string {
+  return answerId === "" ? '""' : answerId;
 }
 
 function isBlank(value: string): boolean {

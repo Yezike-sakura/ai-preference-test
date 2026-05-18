@@ -54,6 +54,23 @@ function balancedMiniQuestions(dimensionWeight: number): Question[] {
   ];
 }
 
+function tiedIdentityQuestions(): Question[] {
+  return [
+    {
+      id: "q1",
+      prompt: "x",
+      options: [
+        {
+          id: "a",
+          text: "x",
+          identityWeights: { learning: 1, engineering: 1, creative: 1 },
+          dimensionWeights: { agency: 0, tempo: 0, output: 0, risk: 0 },
+        },
+      ],
+    },
+  ];
+}
+
 describe("calculateResult", () => {
   it("initializes empty scores for each provided key", () => {
     expect(emptyScores(["a", "b"] as const)).toEqual({ a: 0, b: 0 });
@@ -65,16 +82,13 @@ describe("calculateResult", () => {
     expect(result.persona.title.length).toBeGreaterThan(0);
   });
 
-  it("returns a deterministic secondary identity", () => {
-    const result = calculateResult(QUESTIONS, PERSONAS, {
-      ...pickDominant("engineering"),
-      q1: "a",
-      q2: "a",
-      q3: "a",
-      q4: "a",
-    });
-    expect(result.mainIdentity).toBe("engineering");
-    expect(result.secondaryIdentity).toBe("learning");
+  it("uses identity order to break tied identity scores", () => {
+    const result = calculateResult(tiedIdentityQuestions(), PERSONAS, { q1: "a" });
+
+    expect(result.identityScores.learning).toBe(result.identityScores.engineering);
+    expect(result.identityScores.engineering).toBe(result.identityScores.creative);
+    expect(result.mainIdentity).toBe("learning");
+    expect(result.secondaryIdentity).toBe("engineering");
   });
 
   it("builds the four-letter type code from dimension scores", () => {
@@ -95,7 +109,7 @@ describe("calculateResult", () => {
   });
 
   it("throws an invalid-answer error when an answer is an empty string", () => {
-    expect(() => calculateResult(QUESTIONS, PERSONAS, { q1: "" })).toThrow("Invalid answer  for q1");
+    expect(() => calculateResult(QUESTIONS, PERSONAS, { q1: "" })).toThrow('Invalid answer "" for q1');
   });
 
   it("throws an invalid-answer error for an unknown non-empty answer id", () => {
@@ -141,5 +155,15 @@ describe("calculateResult", () => {
     expect(result.typeCode).toHaveLength(4);
     expect(result.dimensions).toHaveLength(4);
     expect(result.persona.title.length).toBeGreaterThan(0);
+  });
+
+  it("does not mutate input questions or answers", () => {
+    const questions = balancedMiniQuestions(2);
+    const answers = { q1: "a", q2: "a" };
+    const before = JSON.stringify({ questions, answers });
+
+    calculateResult(questions, PERSONAS, answers);
+
+    expect(JSON.stringify({ questions, answers })).toBe(before);
   });
 });
