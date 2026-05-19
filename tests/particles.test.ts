@@ -41,6 +41,8 @@ describe("particle background", () => {
 
     expect(canvas.id).toBe("particle-canvas");
     expect(canvas.getAttribute("aria-hidden")).toBe("true");
+    expect(canvas.style.zIndex).toBe("0");
+    expect(canvas.style.pointerEvents).toBe("none");
     expect(document.body.contains(canvas)).toBe(true);
     expect(context.setTransform).toHaveBeenCalled();
     expect(context.arc).toHaveBeenCalled();

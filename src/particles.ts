@@ -9,14 +9,14 @@ interface Particle {
 const CANVAS_ID = "particle-canvas";
 
 function createParticles(width: number, height: number): Particle[] {
-  const count = Math.max(34, Math.min(72, Math.floor((width * height) / 24000)));
+  const count = Math.max(52, Math.min(96, Math.floor((width * height) / 18000)));
 
   return Array.from({ length: count }, (_, index) => ({
     x: (index * 97) % Math.max(width, 1),
     y: (index * 53) % Math.max(height, 1),
-    vx: Math.sin(index * 1.9) * 0.24,
-    vy: Math.cos(index * 1.4) * 0.24,
-    radius: 1.2 + (index % 4) * 0.42,
+    vx: Math.sin(index * 1.9) * 0.36,
+    vy: Math.cos(index * 1.4) * 0.34,
+    radius: 1.45 + (index % 4) * 0.48,
   }));
 }
 
@@ -35,6 +35,10 @@ export function initParticleBackground(container: HTMLElement = document.body): 
   const canvas = document.createElement("canvas");
   canvas.id = CANVAS_ID;
   canvas.setAttribute("aria-hidden", "true");
+  canvas.style.position = "fixed";
+  canvas.style.inset = "0";
+  canvas.style.zIndex = "0";
+  canvas.style.pointerEvents = "none";
   container.prepend(canvas);
 
   const context = canvas.getContext("2d");
@@ -79,9 +83,9 @@ export function initParticleBackground(container: HTMLElement = document.body): 
         const a = particles[index];
         const b = particles[next];
         const distance = Math.hypot(a.x - b.x, a.y - b.y);
-        if (distance > 145) continue;
+        if (distance > 170) continue;
 
-        renderingContext.strokeStyle = `rgba(35, 116, 207, ${0.16 * (1 - distance / 145)})`;
+        renderingContext.strokeStyle = `rgba(37, 99, 235, ${0.3 * (1 - distance / 170)})`;
         renderingContext.beginPath();
         renderingContext.moveTo(a.x, a.y);
         renderingContext.lineTo(b.x, b.y);
@@ -91,7 +95,7 @@ export function initParticleBackground(container: HTMLElement = document.body): 
 
     for (const [index, particle] of particles.entries()) {
       const pulse = reduceMotion ? 0 : Math.sin(frame / 28 + index) * 0.36;
-      renderingContext.fillStyle = index % 3 === 0 ? "rgba(37, 99, 235, 0.44)" : "rgba(14, 165, 233, 0.34)";
+      renderingContext.fillStyle = index % 3 === 0 ? "rgba(37, 99, 235, 0.62)" : "rgba(14, 165, 233, 0.52)";
       renderingContext.beginPath();
       renderingContext.arc(particle.x, particle.y, particle.radius + pulse, 0, Math.PI * 2);
       renderingContext.fill();

@@ -32,6 +32,43 @@ body {
   overflow-x: hidden;
 }
 
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: -12%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+body::before {
+  background-image:
+    radial-gradient(circle, rgba(37, 99, 235, 0.42) 0 1.2px, transparent 1.8px),
+    radial-gradient(circle, rgba(14, 165, 233, 0.32) 0 1px, transparent 1.7px);
+  background-position:
+    0 0,
+    36px 48px;
+  background-size:
+    82px 82px,
+    138px 138px;
+  opacity: 0.42;
+  animation: particle-drift 26s linear infinite;
+}
+
+body::after {
+  background-image:
+    linear-gradient(115deg, transparent 0 48%, rgba(37, 99, 235, 0.13) 49% 51%, transparent 52%),
+    linear-gradient(35deg, transparent 0 48.8%, rgba(14, 165, 233, 0.11) 49.6% 50.4%, transparent 51.2%);
+  background-position:
+    0 0,
+    72px 36px;
+  background-size:
+    210px 170px,
+    260px 230px;
+  opacity: 0.34;
+  animation: particle-mesh 40s linear infinite reverse;
+}
+
 button {
   font: inherit;
 }
@@ -44,10 +81,44 @@ button:disabled {
 #particle-canvas {
   position: fixed;
   inset: 0;
-  z-index: -2;
+  z-index: 0;
   width: 100%;
   height: 100%;
+  opacity: 0.82;
   pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+#app {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes particle-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(82px, 82px, 0);
+  }
+}
+
+@keyframes particle-mesh {
+  from {
+    transform: translate3d(0, 0, 0) rotate(0.001deg);
+  }
+
+  to {
+    transform: translate3d(-120px, 80px, 0) rotate(0.001deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none;
+  }
 }
 
 .app-shell {
