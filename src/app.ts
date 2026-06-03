@@ -96,6 +96,8 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       textEl("h2", undefined, "不是能力评判，而是你的 AI 协作默认姿势。"),
     );
 
+    panel.append(renderNeuralOrbit());
+
     const grid = el("div", "dimension-preview-grid");
     const labels = [
       "委托 / 掌控",
@@ -113,6 +115,28 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
     }
     panel.append(grid);
     return panel;
+  }
+
+  function renderNeuralOrbit(): HTMLElement {
+    const orbit = el("div", "neural-orbit");
+    orbit.setAttribute("aria-hidden", "true");
+
+    const core = el("div", "orbit-core");
+    core.append(textEl("span", undefined, "AI"));
+    orbit.append(core);
+
+    for (let index = 0; index < 3; index += 1) {
+      orbit.append(el("span", "orbit-ring"));
+    }
+
+    const labels = ["Learn", "Build", "Create", "Ship", "Agent", "Verify"];
+    for (const label of labels) {
+      const node = el("span", "orbit-node");
+      node.append(textEl("strong", undefined, label));
+      orbit.append(node);
+    }
+
+    return orbit;
   }
 
   function renderQuiz(): HTMLElement {

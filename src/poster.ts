@@ -44,12 +44,12 @@ export function buildPosterSvg(result: QuizResult): string {
 <svg xmlns="http://www.w3.org/2000/svg" width="${POSTER_WIDTH}" height="${POSTER_HEIGHT}" viewBox="0 0 ${POSTER_WIDTH} ${POSTER_HEIGHT}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#111827"/>
-      <stop offset="58%" stop-color="#7c3aed"/>
-      <stop offset="100%" stop-color="#f97316"/>
+      <stop offset="0%" stop-color="#06111f"/>
+      <stop offset="58%" stop-color="#0b60ff"/>
+      <stop offset="100%" stop-color="#00c2ff"/>
     </linearGradient>
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="32" stdDeviation="30" flood-color="#1f0f46" flood-opacity="0.32"/>
+      <feDropShadow dx="0" dy="32" stdDeviation="30" flood-color="#003a8f" flood-opacity="0.34"/>
     </filter>
   </defs>
   <rect width="1080" height="1350" rx="72" fill="url(#bg)"/>
