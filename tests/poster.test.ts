@@ -1,10 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { PERSONAS } from "../src/data/personas";
 import { QUESTIONS } from "../src/data/questions";
-import { buildPosterSvg } from "../src/poster";
+import { buildPosterSvg, downloadPosterImage } from "../src/poster";
 import { calculateResult } from "../src/scoring";
 
 describe("poster generation", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("builds an SVG poster with escaped dynamic content and pure SVG text", () => {
     const baseResult = calculateResult(
       QUESTIONS,
@@ -49,5 +54,54 @@ describe("poster generation", () => {
     expect(svg).not.toContain(`稳 & "细"`);
     expect(svg).not.toContain(`可复现 '证据'`);
     expect(svg).not.toContain(`把 <复杂问题> 拆成 "可验证" 的步骤 & 保留 '证据链'。`);
+  });
+
+  it("uses a long-press preview page on mobile browsers", async () => {
+    const writes: string[] = [];
+    const fakeWindow = {
+      closed: false,
+      document: {
+        open: vi.fn(),
+        write: vi.fn((html: string) => writes.push(html)),
+        close: vi.fn(),
+      },
+      focus: vi.fn(),
+    } as unknown as Window;
+    const result = calculateResult(
+      QUESTIONS,
+      PERSONAS,
+      Object.fromEntries(QUESTIONS.map((question) => [question.id, "a"])),
+    );
+
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockReturnValue({ matches: true }),
+    });
+    vi.spyOn(window, "open").mockReturnValue(fakeWindow);
+    vi.stubGlobal(
+      "Image",
+      class {
+        decoding = "sync";
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        set src(_value: string) {
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) => {
+      callback(new Blob(["png"], { type: "image/png" }));
+    });
+
+    await downloadPosterImage(result);
+
+    expect(window.open).toHaveBeenCalledWith("", "_blank");
+    expect(writes.join("\n")).toContain("图片已生成");
+    expect(writes.join("\n")).toContain("长按下方图片保存");
+    expect(fakeWindow.focus).toHaveBeenCalled();
   });
 });

@@ -88,7 +88,154 @@ function downloadBlob(blob: Blob, filename: string): void {
   }
 }
 
+function isLikelyMobileBrowser(): boolean {
+  const userAgent = navigator.userAgent;
+  const mobileUserAgent = /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(userAgent);
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+
+  return mobileUserAgent || coarsePointer;
+}
+
+function openMobilePreviewWindow(): Window | null {
+  if (!isLikelyMobileBrowser()) {
+    return null;
+  }
+
+  const previewWindow = window.open("", "_blank");
+  if (!previewWindow) {
+    return null;
+  }
+
+  previewWindow.document.write(`
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>正在生成结果图片</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        background: #eaf7ff;
+        color: #07111f;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      p { padding: 24px; font-size: 18px; font-weight: 700; text-align: center; }
+    </style>
+  </head>
+  <body>
+    <p>结果图片生成中...</p>
+  </body>
+</html>`);
+  previewWindow.document.close();
+
+  return previewWindow;
+}
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("Poster image preview failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function tryShareBlob(blob: Blob, filename: string): Promise<boolean> {
+  if (!("File" in window)) {
+    return false;
+  }
+
+  const file = new File([blob], filename, { type: blob.type });
+  const shareData: ShareData = {
+    files: [file],
+    title: "AI 使用偏好测试结果",
+    text: "我的 AI 协作人格结果",
+  };
+
+  if (!navigator.canShare?.(shareData) || !navigator.share) {
+    return false;
+  }
+
+  try {
+    await navigator.share(shareData);
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return true;
+    }
+    return false;
+  }
+}
+
+async function showMobilePreview(previewWindow: Window, blob: Blob, filename: string): Promise<void> {
+  const dataUrl = await readBlobAsDataUrl(blob);
+  previewWindow.document.open();
+  previewWindow.document.write(`
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI 使用偏好测试结果图</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+        justify-items: center;
+        background: #eaf7ff;
+        color: #07111f;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .notice {
+        width: min(100%, 520px);
+        padding: 14px 16px;
+        border: 1px solid rgba(11, 96, 255, 0.18);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 16px 40px rgba(0, 78, 160, 0.12);
+        font-size: 15px;
+        line-height: 1.55;
+      }
+      img {
+        width: min(100%, 520px);
+        height: auto;
+        border-radius: 22px;
+        box-shadow: 0 22px 70px rgba(0, 78, 160, 0.22);
+      }
+      a {
+        width: min(100%, 520px);
+        min-height: 48px;
+        display: grid;
+        place-items: center;
+        border-radius: 14px;
+        color: #ffffff;
+        background: linear-gradient(135deg, #073cff, #00a7ff 70%, #00c2ff);
+        font-size: 16px;
+        font-weight: 850;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="notice">图片已生成。手机端请长按下方图片保存；如果浏览器支持，也可以点击按钮下载。</div>
+    <img src="${dataUrl}" alt="AI 使用偏好测试结果图" />
+    <a href="${dataUrl}" download="${filename}">下载结果图片</a>
+  </body>
+</html>`);
+  previewWindow.document.close();
+  previewWindow.focus();
+}
+
 export async function downloadPosterImage(result: QuizResult): Promise<void> {
+  const mobilePreviewWindow = openMobilePreviewWindow();
   const svg = buildPosterSvg(result);
   const svgBlob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const svgUrl = URL.createObjectURL(svgBlob);
@@ -117,7 +264,23 @@ export async function downloadPosterImage(result: QuizResult): Promise<void> {
       throw new Error("PNG export failed");
     }
 
-    downloadBlob(pngBlob, `ai-persona-${result.typeCode}.png`);
+    const filename = `ai-persona-${result.typeCode}.png`;
+    if (mobilePreviewWindow) {
+      await showMobilePreview(mobilePreviewWindow, pngBlob, filename);
+      return;
+    }
+
+    const shared = await tryShareBlob(pngBlob, filename);
+    if (!shared) {
+      downloadBlob(pngBlob, filename);
+    }
+  } catch (error) {
+    if (mobilePreviewWindow && !mobilePreviewWindow.closed) {
+      mobilePreviewWindow.document.open();
+      mobilePreviewWindow.document.write("<p>结果图片生成失败，请返回原页面后使用截图保存海报。</p>");
+      mobilePreviewWindow.document.close();
+    }
+    throw error;
   } finally {
     URL.revokeObjectURL(svgUrl);
   }
