@@ -241,8 +241,16 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
   function renderPoster(result: QuizResult): HTMLElement {
     const poster = el("article", "poster-card");
     poster.id = "result-poster";
+    const portrait = document.createElement("img");
+    portrait.className = "persona-portrait";
+    portrait.src = `personas/${result.personaKey}.jpg`;
+    portrait.alt = `${result.persona.title} 动漫风格画像`;
+    portrait.loading = "eager";
+    portrait.decoding = "async";
+
     poster.append(
       textEl("p", "poster-kicker", "YOUR AI PERSONA"),
+      portrait,
       textEl("h2", undefined, result.persona.title),
       textEl("p", "poster-code", result.typeCode),
       textEl("p", "poster-line", result.persona.identityLine),

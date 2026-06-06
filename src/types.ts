@@ -59,6 +59,7 @@ export interface QuizResult {
   secondaryIdentity: IdentityKey;
   identityScores: ScoreMap<IdentityKey>;
   dimensionScores: ScoreMap<DimensionKey>;
+  personaKey: PersonaKey;
   typeCode: string;
   dimensions: Array<{
     key: DimensionKey;

@@ -75,6 +75,9 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("工程/执行型");
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
+    expect(root.querySelector<HTMLImageElement>(".persona-portrait")?.src).toContain(
+      "personas/learning-engineering.jpg",
+    );
     expect(buttonByText(root, "生成结果图片").disabled).toBe(false);
   });
 

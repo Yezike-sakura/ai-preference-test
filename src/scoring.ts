@@ -76,6 +76,7 @@ export function calculateResult(
     secondaryIdentity,
     identityScores,
     dimensionScores,
+    personaKey: key,
     typeCode: dimensions.map((dimension) => dimension.letter).join(""),
     dimensions,
     persona,
