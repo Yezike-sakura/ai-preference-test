@@ -1,8 +1,9 @@
 import { downloadPosterImage } from "./poster";
 import { calculateResult } from "./scoring";
 import { DIMENSIONS, IDENTITY_DESCRIPTIONS, IDENTITY_LABELS, PERSONAS } from "./data/personas";
+import { DEFAULT_PERSONA_VISUALS } from "./data/personaVisuals";
 import { QUESTIONS } from "./data/questions";
-import type { IdentityKey, Question, QuizResult } from "./types";
+import type { DimensionKey, IdentityKey, PersonaKey, Question, QuizResult } from "./types";
 
 type Screen = "start" | "quiz" | "result";
 
@@ -22,6 +23,20 @@ const identityOrder: IdentityKey[] = [
   "creative",
   "efficiency",
 ];
+
+const radarIdentityLabels: Record<IdentityKey, string> = {
+  learning: "学习",
+  engineering: "工程",
+  creative: "创意",
+  efficiency: "效率",
+};
+
+const radarDimensionLabels: Record<DimensionKey, string> = {
+  agency: "委托",
+  tempo: "探索",
+  output: "整合",
+  risk: "验证",
+};
 
 export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS): void {
   const state: AppState = {
@@ -241,9 +256,10 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
   function renderPoster(result: QuizResult): HTMLElement {
     const poster = el("article", "poster-card");
     poster.id = "result-poster";
+    poster.classList.add(`persona-${result.personaKey}`);
     const portrait = document.createElement("img");
     portrait.className = "persona-portrait";
-    portrait.src = `personas/${result.personaKey}.jpg`;
+    portrait.src = personaImageSrc(result.personaKey);
     portrait.alt = `${result.persona.title} 动漫风格画像`;
     portrait.loading = "eager";
     portrait.decoding = "async";
@@ -256,13 +272,16 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       textEl("p", "poster-line", result.persona.identityLine),
       renderKeywords(result.persona.keywords),
       textEl("p", "poster-line", result.persona.goldenLine),
+      renderPersonaRadar(result),
     );
     return poster;
   }
 
   function renderResultDetails(result: QuizResult): HTMLElement {
     const details = el("div", "result-details");
-    details.append(
+    const header = el("div", "result-header");
+    const copy = el("div", "result-copy");
+    copy.append(
       textEl("p", "eyebrow", "Result"),
       textEl("h2", undefined, "你的 AI 使用人格"),
       textEl("p", "subtitle", result.persona.summary),
@@ -299,6 +318,8 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       }),
     );
 
+    header.append(copy, actions);
+
     const grid = el("div", "detail-grid");
     grid.append(
       renderIdentityProfile(result),
@@ -309,7 +330,7 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
       renderList("建议", result.persona.advice),
     );
 
-    details.append(actions, grid, textEl("p", "advanced-note", "进阶测试暂未开放"));
+    details.append(header, grid, textEl("p", "advanced-note", "进阶测试暂未开放"));
     return details;
   }
 
@@ -386,6 +407,159 @@ export function createApp(root: HTMLElement, questions: Question[] = QUESTIONS):
   render();
 }
 
+function personaImageSrc(personaKey: PersonaKey): string {
+  return DEFAULT_PERSONA_VISUALS[personaKey] ?? `personas/${personaKey}.jpg`;
+}
+
+function renderPersonaRadar(result: QuizResult): HTMLElement {
+  const card = el("section", "persona-radar-card");
+  const header = el("div", "persona-radar-header");
+  header.append(
+    textEl("span", undefined, "人格多边形"),
+    textEl("strong", undefined, result.typeCode),
+  );
+
+  const figure = createRadarSvg(result);
+  const summary = textEl(
+    "p",
+    "persona-radar-summary",
+    `${radarIdentityLabels[result.mainIdentity]}峰值明显，${radarIdentityLabels[result.secondaryIdentity]}倾向辅助。`,
+  );
+
+  card.append(header, figure, summary);
+  return card;
+}
+
+function createRadarSvg(result: QuizResult): SVGSVGElement {
+  const svg = svgEl("svg");
+  svg.setAttribute("viewBox", "0 0 320 250");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", `${result.persona.title} 人格雷达图`);
+
+  const center = { x: 160, y: 126 };
+  const radius = 82;
+  const identityMax = Math.max(...identityOrder.map((identity) => result.identityScores[identity]), 1);
+  const dimensionMax = Math.max(...result.dimensions.map((dimension) => Math.abs(dimension.score)), 1);
+  const axes = [
+    ...identityOrder.map((identity) => ({
+      label: radarIdentityLabels[identity],
+      value: normalizeRadarValue(result.identityScores[identity], identityMax),
+    })),
+    ...result.dimensions.map((dimension) => ({
+      label: radarDimensionLabels[dimension.key],
+      value: normalizeRadarValue(Math.abs(dimension.score), dimensionMax),
+    })),
+  ];
+
+  const grid = svgEl("g");
+  grid.setAttribute("class", "radar-grid");
+  for (let level = 1; level <= 4; level += 1) {
+    const polygon = svgEl("polygon");
+    polygon.setAttribute("points", polygonPoints(axes.map(() => (level / 4) * 100), center, radius));
+    grid.append(polygon);
+  }
+  for (let index = 0; index < axes.length; index += 1) {
+    const point = radarPoint(index, axes.length, 100, center, radius);
+    const line = svgEl("line");
+    line.setAttribute("x1", String(center.x));
+    line.setAttribute("y1", String(center.y));
+    line.setAttribute("x2", String(point.x));
+    line.setAttribute("y2", String(point.y));
+    grid.append(line);
+  }
+  svg.append(grid);
+
+  const shape = svgEl("polygon");
+  shape.setAttribute("class", "radar-shape");
+  shape.setAttribute("points", polygonPoints(axes.map((axis) => axis.value), center, radius));
+  svg.append(shape);
+
+  const outline = svgEl("polyline");
+  const shapePoints = axes.map((axis, index) => radarPoint(index, axes.length, axis.value, center, radius));
+  outline.setAttribute(
+    "points",
+    [...shapePoints, shapePoints[0]].map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" "),
+  );
+  outline.setAttribute("class", "radar-outline");
+  svg.append(outline);
+
+  for (const [index, axis] of axes.entries()) {
+    const labelPoint = radarPoint(index, axes.length, 118, center, radius);
+    const point = radarPoint(index, axes.length, axis.value, center, radius);
+    const label = svgEl("text");
+    label.textContent = axis.label;
+    label.setAttribute("x", String(labelPoint.x));
+    label.setAttribute("y", String(labelPoint.y));
+    label.setAttribute("class", "radar-label");
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("dominant-baseline", "middle");
+    svg.append(label);
+
+    const dot = svgEl("circle");
+    dot.setAttribute("cx", String(point.x));
+    dot.setAttribute("cy", String(point.y));
+    dot.setAttribute("r", "3.8");
+    dot.setAttribute("class", "radar-dot");
+    svg.append(dot);
+  }
+
+  const centerPanel = svgEl("g");
+  centerPanel.setAttribute("class", "radar-center");
+  const centerRect = svgEl("rect");
+  centerRect.setAttribute("x", "96");
+  centerRect.setAttribute("y", "91");
+  centerRect.setAttribute("width", "128");
+  centerRect.setAttribute("height", "70");
+  centerRect.setAttribute("rx", "18");
+  const centerTitle = svgEl("text");
+  centerTitle.textContent = result.persona.title;
+  centerTitle.setAttribute("x", "160");
+  centerTitle.setAttribute("y", "114");
+  centerTitle.setAttribute("text-anchor", "middle");
+  const centerCode = svgEl("text");
+  centerCode.textContent = result.typeCode;
+  centerCode.setAttribute("x", "160");
+  centerCode.setAttribute("y", "147");
+  centerCode.setAttribute("text-anchor", "middle");
+  centerCode.setAttribute("class", "radar-code");
+  centerPanel.append(centerRect, centerTitle, centerCode);
+  svg.append(centerPanel);
+
+  return svg;
+}
+
+function normalizeRadarValue(value: number, max: number): number {
+  if (max <= 0) {
+    return 24;
+  }
+
+  return Math.max(22, Math.min(100, (Math.max(0, value) / max) * 100));
+}
+
+function polygonPoints(values: number[], center: { x: number; y: number }, radius: number): string {
+  return values
+    .map((value, index) => {
+      const point = radarPoint(index, values.length, value, center, radius);
+      return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+function radarPoint(
+  index: number,
+  total: number,
+  value: number,
+  center: { x: number; y: number },
+  radius: number,
+): { x: number; y: number } {
+  const angle = -Math.PI / 2 + (Math.PI * 2 * index) / total;
+  const scaledRadius = (radius * value) / 100;
+  return {
+    x: Number((center.x + Math.cos(angle) * scaledRadius).toFixed(1)),
+    y: Number((center.y + Math.sin(angle) * scaledRadius).toFixed(1)),
+  };
+}
+
 function renderKeywords(keywords: string[]): HTMLElement {
   const row = el("div", "keyword-row");
   for (const keyword of keywords) {
@@ -425,6 +599,10 @@ function el<K extends keyof HTMLElementTagNameMap>(
     element.className = className;
   }
   return element;
+}
+
+function svgEl<K extends keyof SVGElementTagNameMap>(tagName: K): SVGElementTagNameMap[K] {
+  return document.createElementNS("http://www.w3.org/2000/svg", tagName);
 }
 
 function emptyEl(): Text {

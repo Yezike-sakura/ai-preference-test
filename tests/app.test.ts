@@ -43,6 +43,7 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("探索 / 完成");
     expect(root.textContent).toContain("整合 / 产出");
     expect(root.textContent).toContain("开放 / 验证");
+    expect(root.querySelector(".style-pilot")).toBeNull();
   });
 
   it("blocks next until the current question is answered", () => {
@@ -76,8 +77,11 @@ describe("quiz UI", () => {
     expect(root.textContent).toContain("生成结果图片");
     expect(root.textContent).toContain("进阶测试暂未开放");
     expect(root.querySelector<HTMLImageElement>(".persona-portrait")?.src).toContain(
-      "personas/learning-engineering.jpg",
+      "persona-variants/learning-engineering-a.png",
     );
+    expect(root.querySelector(".persona-radar-card svg")).not.toBeNull();
+    expect(root.querySelector(".persona-radar-card")?.textContent).toContain("DEIV");
+    expect(root.querySelector(".persona-radar-card")?.textContent).toContain("知识架构师");
     expect(buttonByText(root, "生成结果图片").disabled).toBe(false);
   });
 
